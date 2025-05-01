@@ -1,6 +1,9 @@
-from django.apps import AppConfig
+"""Настройки приложения."""
+
+from django.apps import AppConfig  # type:ignore
 
 
-class ProductsConfig(AppConfig):
-    default_auto_field = "django.db.models.BigAutoField"
-    name = "products"
+class RecipesConfig(AppConfig):
+    default_auto_field = 'django.db.models.BigAutoField'
+    name = 'products'
+    verbose_name = 'Товары'

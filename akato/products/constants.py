@@ -1,0 +1,7 @@
+"""Константы проекта."""
+
+MAX_NAME_LENGTH: int = 256
+MAX_SUBCATEGORY_NAME_LENGTH: int = 32
+MAX_CATEGORY_NAME_LENGTH: int = 32
+MAX_SLUG_LENGTH: int = 32
+

@@ -2,7 +2,7 @@
 (число повторяется столько раз, чему оно равно)."""
 
 
-def get_n_elements(n: int) -> None:
+def print_n_elements(n: int) -> None:
     """Выводит n первых элементов последовательности 122333444455555…"""
     current = 1
     number = 0
@@ -20,4 +20,4 @@ def get_n_elements(n: int) -> None:
 
 if __name__ == '__main__':
     n = int(input('Введите число элементов последовательности: '))
-    get_n_elements(n)
+    print_n_elements(n)

@@ -50,7 +50,7 @@ class SubcategoryAdmin(BaseAdmin):
     """Регистрация подкатегорий."""
 
     list_display = ('name', 'slug', 'category__name')
-    fields = ('name', 'slug', 'category__name')
+    fields = ('name', 'slug', 'category__id')
     search_fields = ('name', 'category__name')
     verbose_name = 'Подкатегория'
     verbose_name_plural = 'Подкатегории'

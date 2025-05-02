@@ -59,11 +59,7 @@ class ProductViewSet(viewsets.ModelViewSet):
     filter_backends = (DjangoFilterBackend, filters.OrderingFilter)
     filterset_class = RecipeFilter
     pagination_class = LimitPagination
-
-    def get_queryset(self):
-        """Кверисет."""
-        user = self.request.user
-        return Recipe.objects.annotate_fields(user)
+    queryset = Product.objects.all().prefetch_related('images')
 
     def get_permissions(self):
         """Разрешения."""

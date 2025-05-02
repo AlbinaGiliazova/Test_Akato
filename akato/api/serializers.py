@@ -7,7 +7,7 @@ from django.core.files.base import ContentFile  # type: ignore
 from django.contrib.auth import get_user_model  # type: ignore
 from django.shortcuts import get_object_or_404  # type: ignore
 
-from products.models import Category, Subcategory, Product
+from products.models import Category, Subcategory, Product, ProductImage
 from users.models import ShoppingCart
 
 User = get_user_model()
@@ -95,6 +95,44 @@ class CategorySerializer(serializers.ModelSerializer):
                   )      
 
 
+class ProductImageSerializer(serializers.ModelSerializer):
+    """Сериализатор изображений товара."""
+    # по умолчанию DRF отдает .url для ImageField
+    class Meta:
+        model = ProductImage
+        fields = ('id', 'order', 'image')
+
+
+class ProductSerializer(serializers.ModelSerializer):
+    """Сериализатор товара."""
+    images = ProductImageSerializer(many=True, read_only=True)
+    subcategory = SubcategorySerializer()
+
+    class Meta:
+        model = Product
+        fields = ('id',
+                  'name',
+                  'slug', 
+                  'subcategory',  
+                  'price',                                                  
+                  'images',
+                  )
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 class UserReadSerializer(serializers.ModelSerializer):
     """Сериализатор пользователя."""
 
@@ -112,8 +150,8 @@ class UserReadSerializer(serializers.ModelSerializer):
                   'avatar')
 
 
-class RecipeReadSerializer(serializers.ModelSerializer):
-    """Сериализатор рецептов на чтение."""
+class ProductSerializer(serializers.ModelSerializer):
+    """Сериализатор товаров."""
 
     tags = TagSerializer(many=True)
     ingredients = serializers.SerializerMethodField()

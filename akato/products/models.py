@@ -37,6 +37,10 @@ class Category(models.Model):
                             validators=(MaxLengthValidator,
                                         validate_slug),
                             verbose_name='Слаг')
+    image = models.ImageField(
+        upload_to='products/images/categories/',
+        verbose_name='Изображение',
+    )
 
     class Meta:
         """Настройки."""
@@ -64,8 +68,12 @@ class Subcategory(models.Model):
     category = models.ForeignKey(
         Category,
         on_delete=models.CASCADE,
-        related_name='category',
+        related_name='subcategories',
         verbose_name='Категория',
+    )
+    image = models.ImageField(
+        upload_to='products/images/subcategories/',
+        verbose_name='Изображение',
     )
 
     class Meta:

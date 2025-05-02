@@ -49,8 +49,8 @@ class ProductAdmin(BaseAdmin):
 class SubcategoryAdmin(BaseAdmin):
     """Регистрация подкатегорий."""
 
-    list_display = ('name', 'slug', 'category__name')
-    fields = ('name', 'slug', 'category__id')
+    list_display = ('name', 'slug', 'category__name', 'image')
+    fields = ('name', 'slug', 'category__id', 'image')
     search_fields = ('name', 'category__name')
     verbose_name = 'Подкатегория'
     verbose_name_plural = 'Подкатегории'
@@ -59,8 +59,8 @@ class SubcategoryAdmin(BaseAdmin):
 class CategoryAdmin(BaseAdmin):
     """Регистрация категорий."""
 
-    list_display = ('name', 'slug')
-    fields = ('name', 'slug')
+    list_display = ('name', 'slug', 'image')
+    fields = ('name', 'slug', 'image')
     search_fields = ('name',)
     verbose_name = 'Категория'
     verbose_name_plural = 'Категории'   

@@ -19,7 +19,7 @@ from django.shortcuts import redirect  # type: ignore
 from products.models import Category, Subcategory, Product
 from users.models import ShoppingCart
 from .serializers import (CategorySerializer, SubcategorySerializer,
-                          RecipeReadSerializer, IngredientSerializer,
+                          ProductSerializer, ShoppingSerializer,
                           UserReadSerializer, UserWriteSerializer,
                           PasswordSerializer, FavoriteCreateSerializer,
                           SubscriptionSerializer, ShoppingCreateSerializer,
@@ -55,25 +55,18 @@ class SubcategoryViewSet(BaseReadOnlyViewset):
 class ProductViewSet(viewsets.ModelViewSet):
     """Вьюсет товаров."""
 
-    http_method_names = ('get', 'post', 'patch', 'delete')
-    filter_backends = (DjangoFilterBackend, filters.OrderingFilter)
-    filterset_class = RecipeFilter
+    http_method_names = ('get',)
     pagination_class = LimitPagination
     queryset = Product.objects.all().prefetch_related('images')
 
     def get_permissions(self):
         """Разрешения."""
-        if self.action in {'list', 'retrieve', 'get_link'}:
+        if self.action in {'list', 'retrieve',}:
             self.permission_classes = (AllowAny,)
-        elif self.action in {'create',
-                             'download_shopping_cart',
-                             'favorite',
-                             'delete_favorite',
+        elif self.action in {'download_shopping_cart',
                              'shopping_cart',
                              'delete_shopping_cart'}:
             self.permission_classes = (IsAuthenticated,)
-        elif self.action in {'partial_update', 'destroy'}:
-            self.permission_classes = (AuthorOnly,)
         else:
             self.permission_classes = (ForbiddenPermission,)
         return super().get_permissions()
@@ -81,41 +74,17 @@ class ProductViewSet(viewsets.ModelViewSet):
     def get_serializer_class(self):
         """Выбор сериализатора."""
         if self.action in {'list', 'retrieve'}:
-            return RecipeReadSerializer
-        if self.action == 'favorite':
-            return FavoriteCreateSerializer
+            return ProductSerializer
         if self.action == 'shopping_cart':
-            return ShoppingCreateSerializer
-        return RecipeWriteSerializer
+            return ShoppingSerializer
+        return ProductSerializer
 
-    @action(
-        detail=True,
-        methods=('post',),
-        permission_classes=(IsAuthenticated,)
-    )
-    def favorite(self, request, pk):
-        """Добавление в избранное."""
-        self.lookup_field = 'pk'
-        recipe = self.get_object()
-        serializer = self.get_serializer(recipe,
-                                         data={'id': pk},
-                                         context={'request': request})
-        serializer.is_valid(raise_exception=True)
-        serializer.save()
-        return Response(serializer.data)
+    def convert_shopping_cart_to_txt(self, products):
+        """Конвертация корзины в TXT."""
+        if not products:
+            return 'Нет товаров в корзине.'
+        
 
-    @favorite.mapping.delete
-    def delete_favorite(self, request, pk):
-        """Удалить из избранного."""
-        user = request.user
-        favorite = get_object_or_404(Favorite, user=user, recipe__id=pk)
-        favorite.delete()
-        return Response(status=status.HTTP_204_NO_CONTENT)
-
-    def convert_to_txt(self, recipes):
-        """Конвертация в TXT."""
-        if not recipes:
-            return 'Нет рецептов в списке покупок.'
         recipe_ingredients = (RecipeIngredient.objects.
                               filter(recipe__in=recipes))
         ingredients = recipe_ingredients.values(
@@ -138,10 +107,10 @@ class ProductViewSet(viewsets.ModelViewSet):
         permission_classes=(IsAuthenticated,)
     )
     def download_shopping_cart(self, request):
-        """Получение списка покупок в формате PDF."""
+        """Получение корзины покупок в формате TXT."""
         user = request.user
-        recipes = user.shopping_cart.all()
-        txt = self.convert_to_txt(recipes)
+        products = user.shopping_cart.all()
+        txt = self.convert_to_txt(products)
         response = HttpResponse(txt, content_type='text/plain; charset=UTF-8')
         response['Content-Disposition'] = ('attachment; '
                                            'filename="shopping-list.txt"')
@@ -153,10 +122,10 @@ class ProductViewSet(viewsets.ModelViewSet):
         permission_classes=(IsAuthenticated,)
     )
     def shopping_cart(self, request, pk):
-        """Добавление рецепта в список покупок."""
+        """Добавление товара в корзину покупок."""
         self.lookup_field = 'pk'
-        recipe = self.get_object()
-        serializer = self.get_serializer(recipe,
+        product = self.get_object()
+        serializer = self.get_serializer(product,
                                          data={'id': pk},
                                          context={'request': request})
         serializer.is_valid(raise_exception=True)
@@ -165,7 +134,7 @@ class ProductViewSet(viewsets.ModelViewSet):
 
     @shopping_cart.mapping.delete
     def delete_shopping_cart(self, request, pk):
-        """Удаление из списка покупок."""
+        """Удаление из корзины покупок."""
         user = request.user
         shopping = get_object_or_404(ShoppingCart,
                                      user=user,
@@ -180,143 +149,14 @@ class ProductViewSet(viewsets.ModelViewSet):
         url_name='get_link',
     )
     def get_link(self, request, pk):
-        """Получение короткой ссылки."""
+        """Получение короткой ссылки на товар."""
         self.lookup_field = 'pk'
-        recipe = self.get_object()
+        product = self.get_object()
         return Response({
             'short-link':
             (f'{settings.CURRENT_HOST}:{settings.CURRENT_PORT}'
-             f'/s/{recipe.short_url}'),
+             f'/s/{product.short_url}'),
         })
-
-
-class UserViewSet(viewsets.ModelViewSet):
-    """Вьюсет пользователей."""
-
-    http_method_names = ('get', 'post', 'put', 'delete')
-    permission_classes = (AllowAny,)
-    filter_backends = (DjangoFilterBackend, filters.OrderingFilter)
-
-    def get_queryset(self):
-        """Получение списка пользователей."""
-        queryset = User.objects.all()
-        query = self.request.query_params.get('limit')
-        if query:
-            queryset = queryset[:int(query)]
-        return queryset
-
-    @action(
-        detail=False,
-        methods=('put',),
-        permission_classes=(IsAuthenticated,),
-        url_path='me/avatar',
-        url_name='user_avatar',
-    )
-    def put_user_avatar(self, request):
-        """Изменение аватара."""
-        user = request.user
-        serializer = self.get_serializer(user, data=request.data)
-        serializer.is_valid(raise_exception=True)
-        serializer.save()
-        return Response(serializer.data)
-
-    @put_user_avatar.mapping.delete
-    def delete_user_avatar(self, request):
-        """Удаление аватара."""
-        user = request.user
-        user.avatar.delete()
-        user.avatar = settings.DEFAULT_AVATAR
-        user.save()
-        return Response(status=status.HTTP_204_NO_CONTENT)
-
-    @action(
-        detail=False,
-        methods=('get',),
-        permission_classes=(IsAuthenticated,)
-    )
-    def me(self, request):
-        """Страница пользователя."""
-        user = request.user
-        serializer = self.get_serializer(user)
-        return Response(serializer.data)
-
-    @action(
-        detail=False,
-        methods=('post',),
-        permission_classes=(IsAuthenticated,)
-    )
-    def set_password(self, request):
-        """Установка пароля."""
-        user = request.user
-        serializer = self.get_serializer(data=request.data)
-        serializer.is_valid(raise_exception=True)
-        password = serializer.validated_data['new_password']
-        user.set_password(password)
-        user.save()
-        return Response(status=status.HTTP_204_NO_CONTENT)
-
-    def get_serializer_class(self):
-        """Выбор сериализатора."""
-        if self.action in {'me', 'list', 'retrieve'}:
-            return UserReadSerializer
-        if self.action == 'set_password':
-            return PasswordSerializer
-        if self.action == 'subscribe':
-            return SubscriptionCreateSerializer
-        if self.action == 'put_user_avatar':
-            return AvatarSerializer
-        if self.action == 'delete_user_avatar':
-            return None
-        if self.action == 'subscriptions':
-            return SubscriptionSerializer
-        return UserWriteSerializer
-
-    @action(
-        detail=True,
-        methods=('post',),
-        permission_classes=(IsAuthenticated,)
-    )
-    def subscribe(self, request, pk):
-        """Подписка."""
-        user = request.user
-        serializer = self.get_serializer(user,
-                                         data={'id': pk},
-                                         context={'request': request})
-        serializer.is_valid(raise_exception=True)
-        serializer.save()
-        return Response(serializer.data)
-
-    @subscribe.mapping.delete
-    def delete_subscribe(self, request, pk):
-        """Удалить из подписок."""
-        user = request.user
-        subscription = get_object_or_404(Subscription,
-                                         author__id=pk,
-                                         user=user)
-        subscription.delete()
-        return Response(status=status.HTTP_204_NO_CONTENT)
-
-    def get_permissions(self):
-        if self.action in {'partial_update', 'destroy'}:
-            self.permission_classes = (ForbiddenPermission,)
-        return super().get_permissions()
-
-    @action(
-        detail=False,
-        permission_classes=(IsAuthenticated,)
-    )
-    def subscriptions(self, request):
-        """Список подписок."""
-        user = request.user
-        queryset = user.subscriptions.all()
-        query = self.request.query_params.get('limit')
-        if query:
-            queryset = queryset[:int(query)]
-        pages = self.paginate_queryset(queryset)
-        serializer = self.get_serializer(pages,
-                                         many=True,
-                                         context={'request': request})
-        return self.get_paginated_response(serializer.data)
 
 
 class ShortLinkView(APIView):
@@ -325,9 +165,9 @@ class ShortLinkView(APIView):
     permission_classes = (AllowAny,)
 
     def get(self, request, short_link):
-        """Получение рецепта по короткой ссылке."""
-        recipe = get_object_or_404(Recipe, short_url=short_link)
-        return redirect(f'/recipes/{recipe.id}')
+        """Получение товара по короткой ссылке."""
+        product = get_object_or_404(Product, short_url=short_link)
+        return redirect(f'/products/{product.id}')
 
 
 class LoadDataView(APIView):
@@ -353,3 +193,13 @@ class LoadDataView(APIView):
                     slug=tag['slug']
                 )
         return Response(status=status.HTTP_204_NO_CONTENT)
+
+
+class ShoppingItemViewSet(viewsets.ModelViewSet):
+    """Просмотр, добавление, удаление отдельного товара пользователя."""
+    serializer_class = ShoppingSerializer
+    permission_classes = [IsAuthenticated]
+
+    def get_queryset(self):
+        # показываем только товары текущего пользователя
+        return ShoppingCart.objects.filter(user=self.request.user)

@@ -71,7 +71,7 @@ class UserWithShoppingCart(AbstractUser):
     shopping_cart = models.ManyToManyField(
         'products.Product',
         related_name='shopping_cart',
-        verbose_name='Список покупок',
+        verbose_name='Корзина покупок',
         blank=True,
         through='ShoppingCart',
     )
@@ -95,7 +95,7 @@ class UserWithShoppingCart(AbstractUser):
 
 
 class ShoppingCart(models.Model):
-    """Модель списка покупок."""
+    """Модель корзины покупок."""
 
     user = models.ForeignKey(
         UserWithShoppingCart,
@@ -108,6 +108,11 @@ class ShoppingCart(models.Model):
         on_delete=models.CASCADE,
         related_name='product_shopping_cart',
         verbose_name='Товар',
+    )
+
+    quantity = models.PositiveBigIntegerField(
+        verbose_name='Количество товара, шт.',
+        default=0,
     )
 
     class Meta:
